@@ -88,6 +88,10 @@ tip_or_pledge = "tip"
             float: right;
             margin-left: 0.5em;
         }
+        FORM.alias BUTTON {
+            float: none;
+            margin-left: 0;
+        }
         .old-amount-link {
             font-size: 9pt;
             display: none;
@@ -95,7 +99,7 @@ tip_or_pledge = "tip"
             top: 2pt;
             line-height: 9pt;
         }
-        FORM.goal {
+        FORM.goal, FORM.alias {
             display: none;
         }
         FORM.goal TD {
@@ -107,6 +111,15 @@ tip_or_pledge = "tip"
         #goal-custom {
             text-align: right;
             width: 6pc;
+        }
+        DIV.alias {
+            padding: 0 0 1em 46pt;
+        }
+        .alias INPUT.giver-alias {
+            width: 5em;
+        }
+        .alias INPUT.giver-link {
+            width: 7em;
         }
     </style>
     <script>
@@ -236,26 +249,60 @@ tip_or_pledge = "tip"
             });
 
 
-            // Wire up aggregate giving knob.
-            // ==============================
+            // Wire up giving alias knob.
+            // ==========================
 
-            $('.anonymous').click(function()
+            $('DIV.alias BUTTON').click(function()
             {
+                $('DIV.alias.no-editing').hide();
+                $('FORM.alias').show();
+            });
+            $('FORM.alias').submit(function(e)
+            {
+                e.preventDefault();
+
+                $('#save-alias').text('Saving ...');
+
+                var alias = $('INPUT[name=alias]:checked');
+
+                function success(d)
+                {
+                    var newtext = $('LABEL[for=' + alias.attr('id') + ']').text();
+                    newtext = newtext.replace('$', '$' + d.alias);
+
+                    $('FORM.alias').hide();
+                    if (d.alias !== '0.00')
+                        $('INPUT[name=alias_custom]').val(d.alias);
+                    $('DIV.alias.no-editing DIV').html(newtext);
+                    $('DIV.alias.no-editing').show();
+                    $('#save-alias').text('Save');
+                }
                 jQuery.ajax(
-                    { url: 'anonymous.json'
-                    , type: 'POST'
+                    { url: "alias.json"
+                    , type: "POST"
+                    , success: success
                     , dataType: 'json'
-                    , success: function(data)
-                    {
-                        $('INPUT.anonymous').attr('checked', data.anonymous);
-                    }
+                    , data: { giver_alias: $('[name=giver_alias]').val()
+                            , giver_link: $('[name=giver_link]').val()
+                             }
+                    , success: success
                     , error: function() {
-                            alert( "Failed to change your anonymity "
-                                 + "preference. Please try again."
+                            $('#save-alias').text('Save');
+                            alert( "Failed to change your giving alias. :-( "
+                                 + "Please try again?"
                                   );
                         }
                      }
                 );
+                return false;
+            });
+            $('#cancel-alias').click(function(e)
+            {
+                e.preventDefault();
+                e.stopPropagation();
+                $('FORM.alias').hide();
+                $('DIV.alias.no-editing').show();
+                return false;
             });
         });
     </script>
@@ -347,12 +394,36 @@ tip_or_pledge = "tip"
         href="/credit-card.html">Credit card</a></span>
     </h2>
 
-    <p>
-        <input name="anonymous" class="anonymous" type="checkbox"
-            {% if participant['anonymous'] %}checked="true"{% end %} />
-        <label for="anonymous" class="anonymous">Show as
-            &ldquo;anonymous&rdquo; on leaderboard.</label>
-    </p>
+    <div id="my-alias" class="alias no-editing">
+        <div>
+            {% if participant['giver_link'] %}
+            Show as <a href="{{ participant['giver_link'] }}"
+                >{{ participant['giver_alias'] }}</a> on leaderboard.
+            {% else %}
+            Show as {{ participant['giver_alias'] }} on leaderboard.
+            {% end %}
+        </div>
+        <button class="small selected">Edit</button>
+    </div>
+
+    <form class="alias">
+        <div class="alias">
+            Show as <input class="giver-alias"
+                        value="{{ participant['giver_alias'] }}" />
+            and link to
+            <select>
+                <option value="http">http://</option>
+                <option value="https">https://</option>
+            </select>
+            <input class="giver-link"
+                value="{{ participant['giver_link'] }}"/>.<br />
+
+            <button id="cancel-alias" type="cancel" class="small">Cancel</button>
+            <button id="save-alias" type="submit" class="selected small">Save</button>
+            <div class="clear"></div>
+        </div>
+    </form>
+
 
     {% if total == 0 %}
 

@@ -138,3 +138,10 @@ ALTER TABLE paydays RENAME COLUMN exchange_fees_volume  TO charge_fees_volume;
 ALTER TABLE paydays ADD COLUMN nachs            bigint          DEFAULT 0;
 ALTER TABLE paydays ADD COLUMN ach_volume       numeric(35,2)   DEFAULT 0.00;
 ALTER TABLE paydays ADD COLUMN ach_fees_volume  numeric(35,2)   DEFAULT 0.00;
+
+
+-------------------------------------------------------------------------------
+-- https://github.com/whit537/www.gittip.com/issues/272
+
+ALTER TABLE participants ADD COLUMN giver_alias text NOT NULL DEFAULT '';
+ALTER TABLE participants ADD COLUMN giver_link text  NOT NULL DEFAULT '';

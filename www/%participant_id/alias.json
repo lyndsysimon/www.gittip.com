@@ -1,0 +1,20 @@
+from aspen import Response
+from gittip import db
+
+# ========================================================================== ^L
+
+if user.ANON:
+    raise Response(404)
+request.allow("POST")
+
+giver_alias = request.body["giver_alias"]
+giver_link = request.body["giver_link"]
+
+rec = db.fetchone( "UPDATE participants "
+                   "SET giver_alias=%s, giver_link=%s"
+                   "WHERE id=%s RETURNING giver_alias, giver_link"
+                 , (giver_alias, giver_link, user.id)
+                  )
+response.body = { "giver_aliias": rec['giver_alias']
+                , "giver_link": rec['giver_link']
+                 }
