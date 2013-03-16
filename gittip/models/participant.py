@@ -161,15 +161,17 @@ class Participant(db.Model):
                 raise self.IdAlreadyTaken
 
     def get_accounts_elsewhere(self):
-        github_account = twitter_account = None
+        github_account = twitter_account = google_account = None
         for account in self.accounts_elsewhere.all():
             if account.platform == "github":
                 github_account = account
             elif account.platform == "twitter":
                 twitter_account = account
+            elif account.platform == "google":
+                google_account = account
             else:
                 raise self.UnknownPlatform(account.platform)
-        return (github_account, twitter_account)
+        return (github_account, twitter_account, google_account)
 
     def get_img_src(self, size=128):
         """Return a value for <img src="..." />.
@@ -185,7 +187,7 @@ class Participant(db.Model):
 
         src = '/assets/%s/avatar-default.gif' % os.environ['__VERSION__']
 
-        github, twitter = self.get_accounts_elsewhere()
+        github, twitter, google = self.get_accounts_elsewhere()
         if github is not None:
             # GitHub -> Gravatar: http://en.gravatar.com/site/implement/images/
             if 'gravatar_id' in github.user_info:
@@ -202,6 +204,13 @@ class Participant(db.Model):
                 # want the original, cause that can be huge. The next option is
                 # 73px(?!).
                 src = src.replace('_normal.', '_bigger.')
+
+        elif google is not None:
+            #TODO: This is ugly.
+            try:
+                src = google.user_info['profile_image']
+            except KeyError:
+                pass
 
         return src
 
