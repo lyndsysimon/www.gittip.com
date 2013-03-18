@@ -9,6 +9,7 @@ import gittip
 import raven
 import psycopg2
 import stripe
+from gittip.elsewhere.google import GoogleProvider
 from gittip.postgres import PostgresManager
 from psycopg2.extensions import cursor as RegularCursor
 
@@ -58,3 +59,9 @@ def sentry(website):
             ident = sentry.get_ident(exc)
             aspen.log_dammit("Exception reference: " + ident)
         website.hooks.error_early += [tell_sentry]
+
+
+def elsewhere_providers(website):
+    website.elsewhere = {
+        'google': GoogleProvider
+    }

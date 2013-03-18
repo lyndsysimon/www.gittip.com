@@ -12,6 +12,7 @@ gittip.wireup.db()
 gittip.wireup.billing()
 gittip.wireup.id_restrictions(website)
 gittip.wireup.sentry(website)
+gittip.wireup.elsewhere_providers(website)
 
 
 website.github_client_id = os.environ['GITHUB_CLIENT_ID'].decode('ASCII')
@@ -21,6 +22,10 @@ website.github_callback = os.environ['GITHUB_CALLBACK'].decode('ASCII')
 website.twitter_consumer_key = os.environ['TWITTER_CONSUMER_KEY'].decode('ASCII')
 website.twitter_consumer_secret = os.environ['TWITTER_CONSUMER_SECRET'].decode('ASCII')
 website.twitter_callback = os.environ['TWITTER_CALLBACK'].decode('ASCII')
+
+website.google_client_id = os.environ['GOOGLE_CLIENT_ID'].decode('ASCII')
+website.google_client_secret = os.environ['GOOGLE_CLIENT_SECRET'].decode('ASCII')
+website.google_callback = os.environ['GOOGLE_CALLBACK'].decode('ASCII')
 
 website.hooks.inbound_early += [ gittip.canonize
                                , gittip.configure_payments
