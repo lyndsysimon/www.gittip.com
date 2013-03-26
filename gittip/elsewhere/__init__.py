@@ -9,7 +9,7 @@ from gittip.participant import reserve_a_random_participant_id
 
 ACTIONS = [u'opt-in', u'connect', u'lock', u'unlock']
 
-class AuthorizationFailure(Exception):
+class AuthorizationError(Exception):
     pass
 
 def _resolve(platform, username_key, username):
@@ -32,13 +32,11 @@ def _resolve(platform, username_key, username):
                         )
     return rec['participant_id']
 
-class ServiceElsewhere(object):
 
-    def __init__(self, website=None, username=None):
-        self.username = username
-        self.website = website
-        if username:
-            self._get_user_info()
+class AccountElsewhere(object):
+
+    platform = None  # set in subclass
+
 
     @property
     def external_auth_url(self):
@@ -63,27 +61,6 @@ class ServiceElsewhere(object):
         '''
         raise NotImplementedError()
 
-    @property
-    def get_user_info(self, user_id=None, participant=None):
-        '''
-        Returns a dict containing the user's details on the external service.
-        The following keys are required:
-
-        `user_id`
-            The ID of the user on the external service
-        `token`
-            The long-term token used to access user data
-
-        :param user_id:
-            The ID of the participant, on the external service
-        :param participant:
-            The participant ID
-
-        Note that overriding methods should handle the case where neither params
-        are provided by raising an appropriate excpetion.
-
-        '''
-        raise NotImplementedError()
 
     _display_name = None
 
@@ -105,28 +82,62 @@ class ServiceElsewhere(object):
     def display_name(self, val):
         self._display_name = val
 
+
+    def _get_user_info(self, user_id=None, participant=None):
+        '''
+        Returns a dict containing the user's details on the external service.
+        The following keys are required:
+
+        `user_id`
+            The ID of the user on the external service
+        `token`
+            The long-term token used to access user data
+
+        :param user_id:
+            The ID of the participant, on the external service
+        :param participant:
+            The participant ID
+
+        Note that overriding methods should handle the case where neither params
+        are provided by raising an appropriate excpetion.
+
+        '''
+        raise NotImplementedError()
+
     def get_oauth_init_url(self):
         raise NotImplementedError()
 
 
 
-class AccountElsewhere(object):
-
-    platform = None  # set in subclass
-
-    def __init__(self, user_id, user_info=None):
-        """Takes a user_id and user_info, and updates the database.
+    def __init__(self, username, website):
+        """Takes a username and user_info, and updates the database.
         """
-        typecheck(user_id, (int, unicode), user_info, (None, dict))
-        self.user_id = unicode(user_id)
+        typecheck(username, (int, unicode))
+        self.username = unicode(username)
 
-        if user_info is not None:
-            a,b,c,d  = self.upsert(user_info)
+        # This was executed if a user_info was passed to the old class.
+        # if user_info is not None:
+        #     a,b,c,d  = self.upsert(user_info)
 
-            self.participant_id = a
-            self.is_claimed = b
-            self.is_locked = c
-            self.balance = d
+        #     self.participant_id = a
+        #     self.is_claimed = b
+        #     self.is_locked = c
+        #     self.balance = d
+
+        # New class's constructor
+        self.username = username
+        self.website = website
+        if username:
+            self._get_user_info()
+
+    @classmethod
+    def handle_oauth_callback(cls, website, query_string):
+        '''
+        Handles the oauth callback, using whatever actions are appropriate for
+        the provider.
+        '''
+        raise NotImplementedError()
+
 
 
     def get_participant(self):

@@ -5,12 +5,17 @@ import requests
 from aspen import json, log, Response
 from aspen.utils import to_age, utc, typecheck
 from aspen.website import Website
-from gittip.elsewhere import AccountElsewhere, ACTIONS, _resolve, ServiceElsewhere, AuthorizationFailure
+from gittip.elsewhere import AccountElsewhere, ACTIONS, _resolve, AuthorizationError
 
 
-class GoogleProvider(ServiceElsewhere):
+class GoogleProvider(AccountElsewhere):
     service_name = 'google'
     oauth_cache = {}
+
+    def __init__(self, website, username=None, ):
+        if username is None:
+            log(response)
+        super(GoogleProvider, self).__init__(username, website)
 
     def get_oauth_init_url(self, next='', action=u'opt-in'):
         nonce = hashlib.md5(datetime.datetime.now().isoformat()).hexdigest()
@@ -26,20 +31,44 @@ class GoogleProvider(ServiceElsewhere):
             "&redirect_uri=%s",
             "&state=%s",
             "&scope=https://www.googleapis.com/auth/userinfo.profile",
+            "&approval_prompt=force" # Force re-approval
         ]) % (self.website.google_client_id, next or 'associate', state)
 
-    def handle_oauth_callback(self, qs):
+    @classmethod
+    def associate(cls, website, query_string):
         # pull info out of the querystring
-        username, nonce, action = qs['state'].split(',')
+        username, nonce, action = query_string['state'].split(',')
+
+        # Make sure this is a supported action
+        if action not in ACTIONS:
+            raise Response(400)
 
         # Make sure the nonces match our cache
-        if nonce != self.oauth_cache.get(username): #TODO: Make this a pop
-            raise AuthorizationFailed('Nonces do not match.')
+        if nonce != cls.oauth_cache.get(username): #TODO: Make this a pop
+            raise AuthorizationError('Nonces do not match.')
 
-        if action == u'opt-in':
-            log('opt-in detected')
+        # Verify by exchanging the temporary token for a persistent one.
+        response = requests.post(
+            'https://accounts.google.com/o/oauth2/token',
+            data={
+                'code': query_string.get('code'),
+                'client_id': website.google_client_id,
+                'client_secret': website.google_client_secret,
+                'grant_type': 'authorization_code',
+                'redirect_uri': 'http://localhost:8537/on/google/associate'
+            }
+        )
 
-        return True
+        if response.status_code != 200:
+            raise AuthorizationError('Failed to confirm authorization with Google.')
+
+        user = cls(website, username)
+
+        if action == 'opt-in':
+            user.opt_in()
+
+
+
 
 
 
@@ -65,7 +94,7 @@ class GoogleProvider(ServiceElsewhere):
 
             # Make sure we got back a valid response
             if response.status_code != 200:
-                log("Google user lookup failed with %d." % user_info.status_code)
+                log("Google user lookup failed with %d." % response.status_code)
                 raise Response(404)
 
 
@@ -77,69 +106,3 @@ class GoogleProvider(ServiceElsewhere):
             # We strip that out.
             self.avatar = external_user['image']['url'].split('?')[0]
             self.display_name = external_user['displayName']
-
-
-
-class GoogleAccount(AccountElsewhere):
-    platform = u'google'
-
-    def get_url(self):
-        return "https://plus.google.com/" + self.user_info['screen_name']
-
-
-def resolve(screen_name):
-    return _resolve(u'google', u'screen_name', screen_name)
-
-
-
-
-
-def get_user_info(screen_name):
-    """Given a unicode, return a dict.
-    """
-    typecheck(screen_name, unicode)
-    rec = gittip.db.fetchone( "SELECT user_info FROM elsewhere "
-                              "WHERE platform='google' "
-                              "AND user_info->'screen_name' = %s"
-                            , (screen_name,)
-                             )
-    if rec is not None:
-        user_info = rec['user_info']
-    else:
-        url = "https://www.googleapis.com/plus/v1/people/%s?key=AIzaSyDFwxAtyIPi08FgI58rMsL5A9CqvL3kOaY"
-        user_info = requests.get(url % screen_name)
-
-
-        # Keep an eye on our API usage.
-        # =================================
-
-        # rate_limit = user_info.headers['X-RateLimit-Limit']
-        # rate_limit_remaining = user_info.headers['X-RateLimit-Remaining']
-        # rate_limit_reset = user_info.headers['X-RateLimit-Reset']
-
-        # try:
-        #     rate_limit = int(rate_limit)
-        #     rate_limit_remaining = int(rate_limit_remaining)
-        #     rate_limit_reset = int(rate_limit_reset)
-        # except (TypeError, ValueError):
-        #     log( "Got weird rate headers from Twitter: %s %s %s"
-        #        % (rate_limit, rate_limit_remaining, rate_limit_reset)
-        #         )
-        # else:
-        #     reset = datetime.datetime.fromtimestamp(rate_limit_reset, tz=utc)
-        #     reset = to_age(reset)
-        #     log( "Twitter API calls used: %d / %d. Resets %s."
-        #        % (rate_limit - rate_limit_remaining, rate_limit, reset)
-        #         )
-
-
-        if user_info.status_code == 200:
-            user_info = json.loads(user_info.text)
-            user_info['profile_image'] = user_info['image']['url'].split('?')[0]
-
-
-        else:
-            log("Google lookup failed with %d." % user_info.status_code)
-            raise Response(404)
-
-    return user_info

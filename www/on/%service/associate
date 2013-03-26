@@ -1,9 +1,7 @@
 
 # ========================== ^L
 
-service = website.elsewhere[path['service']](website, username)
-
-service.handle_oauth_callback(qs)
+service = website.elsewhere[path['service']].associate(website, query_string=qs)
 
 # ========================== ^L text/plain
 
